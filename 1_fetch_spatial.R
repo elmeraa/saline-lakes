@@ -32,7 +32,7 @@ p1_sp_targets_list <- list(
   ## This should be manually downloaded to local 1_fetch/in/sharepoint folder 
   tar_target(
     p1_saline_lakes_bnds_sf,
-    st_read('1_fetch/in/SalineLakeBnds/SalineLakeBnds.shp') %>% 
+    st_read('1_fetch/in/SalineLakeBnds.shp') %>% 
       st_transform(crs=st_crs(p1_lakes_sf)) %>% 
       ## Formatting for easier rbind with p2_saline_lakes_sf
       rename(GNIS_Name = Name) %>% 
@@ -64,33 +64,45 @@ p1_sp_targets_list <- list(
   ## 1st fetch of huc08 of lakes to be ableo all relevant high res nhd data (water bodies, huc6, huc8, huc10 areas) for focal lakes 
   tar_target(
     p1_huc08_full_basin_sf,
-    get_huc8(AOI = p1_lakes_sf$point_geometry)
+    get_huc8(p1_lakes_sf$point_geometry),
+    pattern = map(p1_lakes_sf)
+    # lmap(p1_lakes_sf$point_geometry, ~ get_huc8(AOI =.x)) 
+    #get_huc8(AOI = st_combine(p1_lakes_sf$point_geometry))
+    
   ),
   
   ## Split huc ids to 04 to pull nhdhr - download_nhdhr() requires that huc id param be huc4.
   tar_target(
     p1_huc04_for_download,
-    substr(p1_huc08_full_basin_sf$huc8, start = 1, stop = 4) %>%
-        unique() %>%
-        ## adding 1601 which is a HU4 that contains watersheds relevant to Great Salt Lake 
-        append('1601')
+    c("1407", "1501", "1603","1704","1705","1706","1602","1604","1605","1606","1801","1802","1803","1804","1808","1809","1712","1601")
+    # substr(p1_huc08_full_basin_sf$huc8, start = 1, stop = 4) %>%
+    #     unique() %>%
+    #     ## adding 1601 which is a HU4 that contains watersheds relevant to Great Salt Lake 
+    #     append('1601')
   ),
   
   ## Download high res nhd data to get lake water bodies 
-  tar_target(
-    p1_download_nhdhr_lakes_path,
-    download_nhdhr_data(nhdhr_gdb_path = '1_fetch/out/nhdhr',
-                        huc04_list = p1_huc04_for_download),
-    format = 'file'
-  ),
+  # tar_target(
+  #   p1_download_nhdhr_lakes_path,
+  #   download_nhdhr_data(nhdhr_gdb_path = '1_fetch/out/nhdhr',
+  #                       huc04_list = p1_huc04_for_download),
+  #   format = 'file'
+  # ),
   
   ## Fetch waterbodies, huc6, huc8, huc10 from hr and place in local gpkg
-  tar_target(p1_nhd_gpkg, 
-             get_downloaded_nhd_data(gdb_path = p1_download_nhdhr_lakes_path,
-                                     out_gpkg_path = '1_fetch/out/nhd_WB_HUC6_HU8_HU10.gpkg',
-                                     layer = c('NHDWaterbody','WBDHU6', 'WBDHU8', 'WBDHU10')),
+  # tar_target(p1_nhd_gpkg, 
+  #            get_downloaded_nhd_data(gdb_path = p1_download_nhdhr_lakes_path,
+  #                                    out_gpkg_path = '1_fetch/out/nhd_WB_HUC6_HU8_HU10.gpkg',
+  #                                    layer = c('NHDWaterbody','WBDHU6', 'WBDHU8', 'WBDHU10')),
+  #            format = 'file'
+  # ),
+  
+  # pulling geopackage from Margaux's download
+  tar_target(p1_nhd_gpkg,
+             '1_fetch/out/nhd_WB_HUC6_HU8_HU10_new.gpkg',
              format = 'file'
   ),
+  
   
   # Lakes Fetch #
   
@@ -169,14 +181,15 @@ p1_sp_targets_list <- list(
   
   ## Grab vector of our huc08s in order to run branching for nhd flowlines fetch  
   tar_target(
-    p1_huc8_vec, 
-    {unique(p1_lakes_huc8_sf$HUC8)}
+    p1_huc8_vec,
+     # c("16010201", "16010203", "16010204", "16010202", "16020307", "16020302", "16020306", "16020309", "16020203", "16020308", "16020305", "16020201", "16020102", "16020301", "16020304", "16020310", "16020202", "16020303", "16020101", "16020204", "16030007", "16030002", "16030004", "16030003", "16030005", "16030006", "16030008", "16030001", "16030009", "16040109", "16040107", "16040106", "16040103", "16040108", "16040105", "16040104", "16040101", "16040102", "16050103", "16050202", "16050101", "16050304", "16050302", "16050201", "16050102", "16050104", "16050301", "16050303", "16050203", "16060002", "16060015", "16060005", "16060007", "16060003", "16060011", "16060009", "16060008", "16060006", "16060004", "16060012", "16060010", "16060014", "16060001", "16060013", "17120006", "17120005", "17120001", "17120004", "17120007", "17120008", "17120009", "17120003", "17120002", "18020002", "18020003", "18020004", "18020005", "18020001", "18080002", "18080001", "18080003", "18090101", "18090103", "18090102")
+     {unique(p1_lakes_huc8_sf$HUC8)}
   ),
   
   # Fetch nhdplus flowlines for each selected huc8 region separately through dynamic branching - note difference between branches 
   tar_target(
     p1_lake_flowlines_huc8_sf,
-    {get_nhdplus(AOI = {p1_lakes_huc8_sf %>% filter(HUC8 %in% p1_huc8_vec)},
+    {get_nhdplus(AOI = {st_combine(p1_lakes_huc8_sf %>% filter(HUC8 %in% p1_huc8_vec))},
                  realization = 'flowline') %>%
         ## fixing col that are automatically transforming to char
         mutate(across(c(surfarea, lakefract, rareahload), ~as.numeric(.x)),
