@@ -6,16 +6,23 @@
 .Renviron
 .Renvironment
 1_fetch/in/*
+!1_fetch/in/SalineLakeBnds/SalineLakeBnds.shp
+!1_fetch/in/SalineLakeBnds/
 !1_fetch/in/saline_lakes.csv
-!1_fetch/in/states_shp/.placeholder
 !1_fetch/in/lake_huc6_huc8_huc10_structure_table.xlsx
 3_visualize/out/*
 !3_visualize/out/.empty
+<<<<<<< HEAD
 !1_fetch/out/nhd_WB_HUC6_HU8_HU10_new.gpkg
 !1_fetch/out/nhd_WB_HUC6_HU8_HU10.gpkg
 !1_fetch/out/nhdhr
 !p1_nwis_dv_sw_data_new.csv
 !p1_nwis_meas_sw_data_new.csv
 
+=======
+*.csv
+*.xlsx
+*.shp
+>>>>>>> ae352fd14c96760543f8d45a98f6a9a53a1d8287
 _targets/
 .DS_Store
